@@ -1,0 +1,24 @@
+[Unit]
+Description=PVE Port Forward Manager (CT panel)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pve-portfw-panel
+Group=pve-portfw-panel
+WorkingDirectory=/opt/pve-portfw-manager
+EnvironmentFile=-/etc/pve-portfw/panel.env
+Environment=PVE_PORTFW_DATA_DIR=/etc/pve-portfw
+ExecStart=/opt/pve-portfw-manager/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8088
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/etc/pve-portfw /var/lib/pve-portfw-panel
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

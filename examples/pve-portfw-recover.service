@@ -1,0 +1,15 @@
+[Unit]
+Description=Restore last confirmed PVE port forwarding after host boot
+After=network-online.target networking.service nftables.service pve-firewall.service proxmox-firewall.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pve-portfw-host-helper recover
+Restart=on-failure
+RestartSec=10s
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target

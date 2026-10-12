@@ -1,0 +1,60 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - name: Installer and helper syntax
+        run: |
+          for script in scripts/install-panel.sh scripts/install-host-helper.sh scripts/pve-portfw-host-helper scripts/pve-portfw-restricted-ssh; do
+            bash -n "$script"
+          done
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r requirements-dev.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: node --check app/static/app.js
+      - run: node --check app/static/theme.js
+      - name: Mock UI workflow
+        shell: bash
+        run: |
+          python scripts/preview.py --port 8089 > /tmp/portfw-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid"' EXIT
+          curl --silent --output /dev/null --retry 15 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:8089/api/config
+          python tests/browser_workflow.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ui-screenshots
+          path: .artifacts/browser/
+          retention-days: 3

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec /usr/bin/python3 -I /usr/local/lib/pve-portfw-helper/entry.py "$@"

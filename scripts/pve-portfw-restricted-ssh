@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HELPER="/usr/local/sbin/pve-portfw-host-helper"
+ORIGINAL="${SSH_ORIGINAL_COMMAND:-}"
+
+case "${ORIGINAL}" in
+  "${HELPER} dry-run") exec sudo -n "${HELPER}" dry-run ;;
+  "${HELPER} apply") exec sudo -n "${HELPER}" apply ;;
+  "${HELPER} confirm") exec sudo -n "${HELPER}" confirm ;;
+  "${HELPER} rollback") exec sudo -n "${HELPER}" rollback ;;
+  "${HELPER} diagnostics") exec sudo -n "${HELPER}" diagnostics ;;
+  "${HELPER} status") exec sudo -n "${HELPER}" status ;;
+  *) echo "restricted command denied" >&2; exit 126 ;;
+esac

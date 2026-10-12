@@ -1,0 +1,22 @@
+[
+  {
+    "id": "ubuntu-ssh",
+    "name": "Ubuntu SSH",
+    "enabled": true,
+    "proto": "tcp",
+    "external_port": 2222,
+    "dest_ip": "10.42.0.100",
+    "dest_port": 22,
+    "note": "Ubuntu Server SSH"
+  },
+  {
+    "id": "web-service",
+    "name": "Web Service",
+    "enabled": true,
+    "proto": "tcp",
+    "external_port": 8080,
+    "dest_ip": "10.42.0.101",
+    "dest_port": 80,
+    "note": "Internal web service"
+  }
+]

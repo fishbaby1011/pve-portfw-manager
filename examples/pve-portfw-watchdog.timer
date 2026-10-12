@@ -1,0 +1,11 @@
+[Unit]
+Description=Host-owned PVE port forwarding rollback watchdog
+
+[Timer]
+OnBootSec=1s
+OnUnitActiveSec=1s
+AccuracySec=1s
+Unit=pve-portfw-watchdog.service
+
+[Install]
+WantedBy=timers.target

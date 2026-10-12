@@ -1,0 +1,7 @@
+[Unit]
+Description=Check PVE port forwarding confirmation deadline
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pve-portfw-host-helper expire
+TimeoutStartSec=60

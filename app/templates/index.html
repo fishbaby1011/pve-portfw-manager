@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PVE Port Forward Manager</title>
+    <script src="/static/theme.js"></script>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script defer src="/static/vendor/lucide.min.js"></script>
+    <script defer src="/static/app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <nav class="sidebar" aria-label="主要導覽">
+        <a class="brand" href="/" aria-label="PVE Port Forward Manager"><i data-lucide="network" aria-hidden="true"></i><span>Port Forward<span class="brand-sub">PROXMOX VE</span></span></a>
+        <div class="nav-group">
+          <button class="nav-item active" type="button" data-view="dashboard" aria-current="page"><i data-lucide="layout-dashboard" aria-hidden="true"></i>總覽</button>
+          <button class="nav-item" type="button" data-view="rules"><i data-lucide="list-filter" aria-hidden="true"></i>轉發規則<span class="nav-count" id="nav-rule-count">0</span></button>
+          <button class="nav-item" type="button" data-view="diagnostics"><i data-lucide="activity" aria-hidden="true"></i>診斷檢查</button>
+          <button class="nav-item" type="button" data-view="nft"><i data-lucide="file-code-2" aria-hidden="true"></i>nft 預覽</button>
+        </div>
+        <div class="sidebar-foot"><i data-lucide="shield-check" aria-hidden="true"></i>Restricted Host Helper</div>
+      </nav>
+      <div class="workspace">
+        <header class="topbar">
+          <div><h1>PVE Port Forward Manager</h1><span class="topbar-sub">Port forwarding / <span id="current-view">總覽</span></span></div>
+          <div class="topbar-actions">
+            <span class="connection-pill" id="connection-pill"><span class="status-dot"></span><span id="connection-label">檢查 Host…</span></span>
+            <button class="icon-button" type="button" data-action="toggle-theme" id="theme-toggle" aria-label="切換淺色模式" title="切換淺色模式"><i data-lucide="sun" aria-hidden="true"></i></button>
+          </div>
+        </header>
+        <main class="content">
+          <div class="preview-banner" id="preview-banner" hidden>LOCAL PREVIEW · Mock Host · 不會連線至 PVE 或修改 nftables</div>
+          <div class="notice-banner error" id="connection-error" role="status" hidden></div>
+          <div class="apply-banner" id="apply-banner" hidden aria-live="polite">
+            <div><strong>等待確認套用</strong><span id="apply-banner-text">Host 自動回滾保護中</span></div>
+            <strong class="countdown" id="rollback-countdown">120s</strong>
+            <div class="toolbar">
+              <button class="secondary-action" type="button" data-action="rollback"><i data-lucide="rotate-ccw" aria-hidden="true"></i>立即回滾</button>
+              <button class="primary-action" type="button" data-action="confirm" id="confirm-button"><i data-lucide="check" aria-hidden="true"></i>確認套用</button>
+            </div>
+          </div>
+          <section class="view active" id="view-dashboard" aria-labelledby="dashboard-title">
+            <div class="section-head"><div><p class="eyebrow">OVERVIEW</p><h2 id="dashboard-title">轉發狀態</h2></div><div class="toolbar"><button class="icon-button" type="button" data-action="refresh" title="重新檢查 Host" aria-label="重新檢查 Host"><i data-lucide="refresh-cw" aria-hidden="true"></i></button><button class="secondary-action" type="button" data-action="go-rules"><i data-lucide="plus" aria-hidden="true"></i>新增規則</button></div></div>
+            <div class="metric-grid">
+              <article class="metric-card"><span>Host Helper</span><strong id="metric-helper">檢查中</strong><small id="metric-helper-detail">尚未取得回應</small></article>
+              <article class="metric-card"><span>生效規則</span><strong class="metric-number" id="metric-active">—</strong><small id="metric-active-detail">以 Host table 驗證</small></article>
+              <article class="metric-card"><span>待處理變更</span><strong class="metric-number" id="metric-pending">—</strong><small id="metric-pending-detail">尚未取得基準</small></article>
+              <article class="metric-card"><span>回滾保護</span><strong id="metric-rollback">未知</strong><small id="metric-rollback-detail">120 秒確認視窗</small></article>
+            </div>
+            <div class="status-overview">
+              <div><span>規則生效狀態</span><strong id="table-status">尚未驗證</strong></div>
+              <div><span>最近一次套用</span><strong id="metric-apply">尚未套用</strong></div>
+              <div><span>最後確認</span><strong id="last-confirmed">尚未確認</strong></div>
+            </div>
+            <section class="attention-section" aria-labelledby="attention-title"><div class="subsection-head"><h3 id="attention-title">需要注意</h3><button class="text-action" type="button" data-action="go-diagnostics">查看診斷<i data-lucide="arrow-right" aria-hidden="true"></i></button></div><div id="attention-list" class="attention-list"></div></section>
+            <details class="advanced-section" id="setup-section" open><summary><i data-lucide="clipboard-check" aria-hidden="true"></i>環境檢查<span id="preflight-summary">檢查中</span></summary><div class="details-content"><div class="subsection-head"><h3>Panel / Host Preflight</h3><button class="secondary-action small" type="button" data-action="preflight"><i data-lucide="refresh-cw" aria-hidden="true"></i>重新檢查</button></div><div id="preflight-list" class="preflight-list"></div></div></details>
+            <details class="advanced-section"><summary><i data-lucide="network" aria-hidden="true"></i>網路設定與安全限制</summary><div class="details-content">
+              <div class="topology"><div><span>External</span><strong data-config="public-ip">—</strong><small data-config="external-interface">—</small></div><i data-lucide="arrow-right" aria-hidden="true"></i><div><span>Host</span><strong>table ip pve_portfw</strong><small>nftables</small></div><i data-lucide="arrow-right" aria-hidden="true"></i><div><span>Internal</span><strong data-config="internal-subnet">—</strong><small data-config="internal-interface">—</small></div></div>
+              <dl class="network-details"><div><dt>Gateway</dt><dd data-config="gateway">—</dd></div><div><dt>Panel listen</dt><dd data-config="panel-listen">—</dd></div><div><dt>受保護 External Port</dt><dd data-config="protected-ports">—</dd></div><div><dt>規則總數 / 啟用 / 停用</dt><dd id="metric-total">0 / 0 / 0</dd></div><div><dt>TCP / UDP</dt><dd id="metric-protocols">0 / 0</dd></div></dl>
+              <div class="safety-strip"><span>only pve_portfw</span><span>no input hook</span><span>no output hook</span><span>no flush ruleset</span><span>policy accept</span><span>120s rollback</span><span>VPN / SSH tunnel only</span></div>
+            </div></details>
+          </section>
+          <section class="view" id="view-rules" aria-labelledby="rules-title">
+            <div class="section-head"><div><p class="eyebrow">RULES</p><h2 id="rules-title">轉發規則</h2></div><div class="toolbar">
+              <details class="action-menu" id="rules-menu"><summary class="icon-button" title="進階操作" aria-label="進階操作"><i data-lucide="ellipsis" aria-hidden="true"></i></summary><div class="menu-items">
+                <button type="button" data-action="reload-rules"><i data-lucide="refresh-cw" aria-hidden="true"></i>重新載入已儲存規則</button>
+                <button type="button" data-action="export-json"><i data-lucide="download" aria-hidden="true"></i>匯出 JSON</button>
+                <button type="button" data-action="import-json"><i data-lucide="upload" aria-hidden="true"></i>匯入 JSON</button>
+                <button type="button" data-action="copy-rules-json"><i data-lucide="copy" aria-hidden="true"></i>複製 rules.json</button>
+                <button type="button" data-action="copy-apply-plan"><i data-lucide="clipboard-list" aria-hidden="true"></i>複製 Apply Plan</button>
+                <button type="button" data-action="disable-all" class="danger-text"><i data-lucide="power" aria-hidden="true"></i>全部停用</button>
+                <button type="button" data-action="rollback" class="danger-text"><i data-lucide="rotate-ccw" aria-hidden="true"></i>立即回滾</button>
+              </div></details>
+              <button class="secondary-action" type="button" data-action="add-rule"><i data-lucide="plus" aria-hidden="true"></i>新增規則</button>
+              <button class="secondary-action" type="button" data-action="save"><i data-lucide="save" aria-hidden="true"></i>儲存</button>
+              <button class="primary-action" type="button" data-action="review"><i data-lucide="git-compare-arrows" aria-hidden="true"></i>檢視並套用</button>
+            </div></div>
+            <div class="workflow-strip"><span class="phase-badge" id="workflow-phase">載入中</span><span id="workflow-detail">尚未取得 Host 狀態</span></div>
+            <div class="filter-panel">
+              <label class="search-field"><span class="sr-only">搜尋規則</span><i data-lucide="search" aria-hidden="true"></i><input id="filter-keyword" autocomplete="off" placeholder="搜尋名稱、IP、Port、備註" /></label>
+              <label><span class="sr-only">啟用狀態</span><select id="filter-status"><option value="all">全部狀態</option><option value="enabled">啟用</option><option value="disabled">停用</option></select></label>
+              <label><span class="sr-only">通訊協定</span><select id="filter-proto"><option value="all">全部協定</option><option value="tcp">TCP</option><option value="udp">UDP</option></select></label>
+              <button class="icon-button" type="button" data-action="clear-filters" title="清除篩選" aria-label="清除篩選"><i data-lucide="filter-x" aria-hidden="true"></i></button><span class="filter-count" id="filter-count">0 條規則</span>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th scope="col">啟用</th><th scope="col">規則</th><th scope="col">協定</th><th scope="col">External</th><th scope="col">Internal</th><th scope="col">備註</th><th scope="col">操作</th></tr></thead><tbody id="rules-body"></tbody></table></div>
+            <details class="advanced-section" id="apply-log-section"><summary><i data-lucide="terminal" aria-hidden="true"></i>Apply Log</summary><div class="details-content"><div class="subsection-head"><h3>操作紀錄</h3><button class="icon-button" type="button" data-action="copy-apply-plan" title="複製 Apply Plan" aria-label="複製 Apply Plan"><i data-lucide="copy" aria-hidden="true"></i></button></div><div id="apply-log"></div></div></details>
+          </section>
+          <section class="view" id="view-diagnostics" aria-labelledby="diagnostics-title">
+            <div class="section-head"><div><p class="eyebrow">DIAGNOSTICS</p><h2 id="diagnostics-title">診斷檢查</h2></div><button class="secondary-action" type="button" data-action="refresh-diagnostics"><i data-lucide="refresh-cw" aria-hidden="true"></i>重新檢查</button></div>
+            <div class="scope-note"><i data-lucide="info" aria-hidden="true"></i><span>檢查範圍：Host 設定與 CT → 內部服務。Internet → VM/CT 需要另外從外網測試。</span></div>
+            <div class="diagnostic-summary" id="diagnostic-summary"></div><div class="diagnostic-list" id="diagnostic-list"></div>
+          </section>
+          <section class="view" id="view-nft" aria-labelledby="nft-title">
+            <div class="section-head"><div><p class="eyebrow">GENERATED CONFIGURATION</p><h2 id="nft-title">nft 預覽</h2></div><button class="secondary-action" type="button" data-action="copy-nft"><i data-lucide="copy" aria-hidden="true"></i>複製 nft</button></div>
+            <div class="subsection-head"><h3>變更摘要</h3><span class="muted" id="preview-source">目前草稿</span></div><div class="change-summary" id="nft-change-summary"></div>
+            <div class="scope-note"><i data-lucide="shield-check" aria-hidden="true"></i><span>以下是規則結構與限制檢查，不代表端到端連線或整台 Host 的安全已驗證。</span></div>
+            <div class="safety-check-grid" id="nft-safety-checks"></div><pre class="code-panel"><code id="nft-code"></code></pre>
+          </section>
+        </main>
+        <footer class="page-footer"><span>Only table ip pve_portfw</span><span>Apply confirmation · 120s rollback</span></footer>
+      </div>
+    </div>
+    <aside class="drawer" id="rule-drawer" aria-hidden="true">
+      <div class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+        <div class="drawer-head"><div><p class="eyebrow">RULE EDITOR</p><h2 id="drawer-title">新增規則</h2></div><button class="icon-button" type="button" data-action="close-drawer" aria-label="關閉規則編輯器" title="關閉"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <form id="rule-form" novalidate>
+          <label><span>規則名稱</span><input name="name" autocomplete="off" placeholder="Ubuntu SSH" maxlength="120" required /></label>
+          <div class="form-row"><fieldset class="segmented"><legend>通訊協定</legend><label><input type="radio" name="proto" value="tcp" checked /><span>TCP</span></label><label><input type="radio" name="proto" value="udp" /><span>UDP</span></label></fieldset><label class="toggle"><input type="checkbox" name="enabled" checked /><span>啟用規則</span></label></div>
+          <label><span>External Port</span><input name="external_port" type="number" min="1" max="65535" placeholder="2222" required /></label>
+          <div class="form-row destination-fields"><label><span>Internal IP</span><input name="dest_ip" inputmode="decimal" placeholder="10.10.10.100" required /></label><label><span>內部 Port</span><input name="dest_port" type="number" min="1" max="65535" placeholder="22" required /></label></div>
+          <div class="mapping-preview" id="rule-mapping">—</div>
+          <label><span>備註 <small>選填</small></span><textarea name="note" rows="3" maxlength="1000"></textarea></label>
+          <details class="field-details"><summary>規則 ID</summary><label><span class="sr-only">ID</span><input name="id" autocomplete="off" maxlength="80" /></label></details>
+          <div class="validation-box" id="validation-box" hidden role="alert"></div>
+          <div class="drawer-actions"><button class="secondary-action" type="button" data-action="close-drawer">取消</button><button class="primary-action" type="submit"><i data-lucide="check" aria-hidden="true"></i>加入草稿</button></div>
+        </form>
+      </div>
+    </aside>
+    <aside class="drawer" id="review-drawer" aria-hidden="true">
+      <div class="drawer-panel review-panel" role="dialog" aria-modal="true" aria-labelledby="review-title" tabindex="-1">
+        <div class="drawer-head"><div><p class="eyebrow">REVIEW &amp; APPLY</p><h2 id="review-title">檢視變更</h2></div><button class="icon-button" type="button" data-action="close-review" aria-label="關閉變更檢視" title="關閉"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <div id="review-summary" class="change-summary"></div>
+        <div class="scope-note"><i data-lucide="info" aria-hidden="true"></i><span>儲存只更新 rules.json。套用會修改 Host 的 pve_portfw table，並啟動 120 秒回滾保護。</span></div>
+        <div class="review-checks"><span id="review-validation">尚未執行 Dry Run</span><span id="review-host">Host 檢查中</span></div>
+        <div class="validation-box" id="review-error" hidden role="alert"></div>
+        <div class="drawer-actions"><button class="secondary-action" type="button" data-action="dry-run" id="dry-run-button"><i data-lucide="check-check" aria-hidden="true"></i>驗證 / Dry Run</button><button class="primary-action" type="button" data-action="apply" id="apply-button" disabled><i data-lucide="play" aria-hidden="true"></i>儲存並套用</button></div>
+      </div>
+    </aside>
+    <aside class="drawer" id="import-drawer" aria-hidden="true">
+      <div class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="import-title" tabindex="-1">
+        <div class="drawer-head"><div><p class="eyebrow">IMPORT</p><h2 id="import-title">匯入 rules.json</h2></div><button class="icon-button" type="button" data-action="close-import" aria-label="關閉匯入" title="關閉"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <form id="import-form" novalidate><label><span>JSON array 或 { rules: [...] }</span><textarea id="import-json" rows="16" spellcheck="false"></textarea></label><div class="validation-box" id="import-validation" hidden role="alert"></div><div class="drawer-actions"><button class="secondary-action" type="button" data-action="close-import">取消</button><button class="primary-action" type="submit"><i data-lucide="upload" aria-hidden="true"></i>匯入草稿</button></div></form>
+      </div>
+    </aside>
+    <a id="download-link" hidden></a><div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
